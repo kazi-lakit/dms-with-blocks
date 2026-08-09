@@ -106,6 +106,20 @@ export const filesApi = {
       method: "POST",
       body: JSON.stringify({ fileId, configurationName }),
     }),
+
+  // POST /Files/MoveFile — DomainService.Storage.Dms.MoveFileRequest
+  moveFile: (fileId: string, targetDirectoryId: string) =>
+    blocksFilesFetch<{ isSuccess?: boolean }>(`/Files/MoveFile`, {
+      method: "POST",
+      body: JSON.stringify({ fileId, targetDirectoryId }),
+    }),
+
+  // POST /Files/CopyFile — DomainService.Storage.Dms.CopyFileRequest
+  copyFile: (fileId: string, targetDirectoryId: string, copyAccessPolicies = false) =>
+    blocksFilesFetch<{ isSuccess?: boolean }>(`/Files/CopyFile`, {
+      method: "POST",
+      body: JSON.stringify({ fileId, targetDirectoryId, copyAccessPolicies }),
+    }),
 };
 
 // The root listing (no directory picked yet) has no DirectoryId to pass, so it
@@ -156,6 +170,13 @@ export const directoryApi = {
     blocksFilesFetch<{ isSuccess?: boolean }>(`/Directory/DeleteDirectory`, {
       method: "POST",
       body: JSON.stringify({ directoryId, permanent }),
+    }),
+
+  // POST /Directory/MoveDirectory — DomainService.Storage.Dms.MoveDirectoryRequest
+  moveDirectory: (directoryId: string, targetDirectoryId: string) =>
+    blocksFilesFetch<{ isSuccess?: boolean }>(`/Directory/MoveDirectory`, {
+      method: "POST",
+      body: JSON.stringify({ directoryId, targetDirectoryId }),
     }),
 };
 

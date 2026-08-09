@@ -5,6 +5,7 @@ import {
   accessApi,
   normalizeAccessPolicies,
   normalizeSharedContent,
+  normalizeTrash,
   type ContentPermission,
   type ContentPrincipalType,
   type ContentResourceType,
@@ -47,12 +48,41 @@ export function useCreateDirectory(directoryId: string) {
   });
 }
 
+// A "delete" from the drive is always a soft delete — archives into Trash rather than
+// erasing outright. `/Files/DeleteFile` has no permanent flag (files always archive);
+// `/Directory/DeleteDirectory` does, so it's passed explicitly rather than relying on
+// its own default. Permanent removal only happens from the Trash view (useDeleteFromTrash).
 export function useDeleteEntry(directoryId: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (entry: DirectoryChild) =>
-      entry.isFolder ? directoryApi.deleteDirectory(entry.id) : filesApi.deleteFile(entry.id),
+      entry.isFolder ? directoryApi.deleteDirectory(entry.id, false) : filesApi.deleteFile(entry.id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["directory", directoryId] }),
+  });
+}
+
+/** Moves a file or folder into another directory — invalidates both the folder it left and the one it landed in. */
+export function useMoveEntry(directoryId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ entry, targetDirectoryId }: { entry: DirectoryChild; targetDirectoryId: string }) =>
+      entry.isFolder
+        ? directoryApi.moveDirectory(entry.id, targetDirectoryId)
+        : filesApi.moveFile(entry.id, targetDirectoryId),
+    onSuccess: (_result, { targetDirectoryId }) => {
+      qc.invalidateQueries({ queryKey: ["directory", directoryId] });
+      qc.invalidateQueries({ queryKey: ["directory", targetDirectoryId] });
+    },
+  });
+}
+
+/** Copies a file into another directory — only the destination folder's listing changes. Directories can't be copied (no CopyDirectory endpoint). */
+export function useCopyFile() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ fileId, targetDirectoryId }: { fileId: string; targetDirectoryId: string }) =>
+      filesApi.copyFile(fileId, targetDirectoryId),
+    onSuccess: (_result, { targetDirectoryId }) => qc.invalidateQueries({ queryKey: ["directory", targetDirectoryId] }),
   });
 }
 
@@ -104,5 +134,34 @@ export function useRevokeAccess(resourceId: string) {
   return useMutation({
     mutationFn: (policyItemId: string) => accessApi.revoke(resourceId, policyItemId),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["access", resourceId] }),
+  });
+}
+
+export function useTrash(type?: ContentResourceType) {
+  return useQuery({
+    queryKey: ["trash", type ?? "all"],
+    queryFn: () => accessApi.getTrash({ type }).then(normalizeTrash),
+    placeholderData: (prev) => prev,
+  });
+}
+
+/** Puts an archived item back where it came from — also refreshes whichever directory listings are open, since we don't know the original parent without a lookup. */
+export function useRestoreFromTrash() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (resourceId: string) => accessApi.restoreFromTrash(resourceId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["trash"] });
+      qc.invalidateQueries({ predicate: (q) => q.queryKey[0] === "directory" });
+    },
+  });
+}
+
+/** Permanently erases an archived item. Irreversible — confirm with the user before calling. */
+export function useDeleteFromTrash() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (resourceId: string) => accessApi.deleteFromTrash(resourceId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["trash"] }),
   });
 }

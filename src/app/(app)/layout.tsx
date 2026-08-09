@@ -8,6 +8,7 @@ import { DriveSetupPrompt } from "@/components/drive/drive-setup-prompt";
 import { Sidebar } from "@/components/drive/sidebar";
 import { UserMenu } from "@/components/drive/user-menu";
 import { Spinner } from "@/components/ui/spinner";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { status } = useAuth();
@@ -53,7 +54,8 @@ function DriveGate({ children }: { children: React.ReactNode }) {
     <div className="flex min-h-screen flex-1">
       <Sidebar />
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-16 flex-none items-center justify-end border-b border-hairline px-6">
+        <header className="flex h-16 flex-none items-center justify-end gap-2 border-b border-hairline px-6">
+          <ThemeToggle />
           <UserMenu />
         </header>
         <main className="min-w-0 flex-1">{children}</main>

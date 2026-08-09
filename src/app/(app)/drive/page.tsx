@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { FolderPlus, Search, Upload as UploadIcon } from "lucide-react";
 import { Breadcrumbs, type Crumb } from "@/components/drive/breadcrumbs";
+import { DestinationPickerDialog } from "@/components/drive/destination-picker-dialog";
 import { FileGrid } from "@/components/drive/file-grid";
 import { NewFolderDialog } from "@/components/drive/new-folder-dialog";
 import { ShareDialog } from "@/components/drive/share-dialog";
@@ -10,7 +11,14 @@ import { UploadDropzone } from "@/components/drive/upload-dropzone";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { filesApi, type DirectoryChild } from "@/lib/blocks/files";
-import { useCreateDirectory, useDeleteEntry, useDirectoryChildren, useUploadFile } from "@/lib/blocks/drive-hooks";
+import {
+  useCopyFile,
+  useCreateDirectory,
+  useDeleteEntry,
+  useDirectoryChildren,
+  useMoveEntry,
+  useUploadFile,
+} from "@/lib/blocks/drive-hooks";
 import { useDrive } from "@/components/providers/drive-provider";
 
 export default function DrivePage() {
@@ -19,6 +27,7 @@ export default function DrivePage() {
   const [search, setSearch] = useState("");
   const [showNewFolder, setShowNewFolder] = useState(false);
   const [shareTarget, setShareTarget] = useState<DirectoryChild | null>(null);
+  const [transferTarget, setTransferTarget] = useState<{ entry: DirectoryChild; mode: "move" | "copy" } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Empty trail means "at the drive root" — that's the user's own drive directory
@@ -31,6 +40,8 @@ export default function DrivePage() {
   const upload = useUploadFile(currentFolderId);
   const createDirectory = useCreateDirectory(currentFolderId);
   const deleteEntry = useDeleteEntry(currentFolderId);
+  const moveEntry = useMoveEntry(currentFolderId);
+  const copyFile = useCopyFile();
 
   function openFolder(entry: DirectoryChild) {
     setSearch("");
@@ -104,6 +115,8 @@ export default function DrivePage() {
           onOpenFolder={openFolder}
           onDownload={downloadEntry}
           onShare={setShareTarget}
+          onMove={(entry) => setTransferTarget({ entry, mode: "move" })}
+          onCopy={(entry) => setTransferTarget({ entry, mode: "copy" })}
           onDelete={(e) => deleteEntry.mutate(e)}
         />
       )}
@@ -121,6 +134,21 @@ export default function DrivePage() {
       )}
 
       {shareTarget && <ShareDialog entry={shareTarget} onClose={() => setShareTarget(null)} />}
+
+      {transferTarget && (
+        <DestinationPickerDialog
+          entry={transferTarget.entry}
+          mode={transferTarget.mode}
+          confirming={transferTarget.mode === "move" ? moveEntry.isPending : copyFile.isPending}
+          onClose={() => setTransferTarget(null)}
+          onConfirm={(targetDirectoryId) => {
+            const { entry, mode } = transferTarget;
+            const onSuccess = () => setTransferTarget(null);
+            if (mode === "move") moveEntry.mutate({ entry, targetDirectoryId }, { onSuccess });
+            else copyFile.mutate({ fileId: entry.id, targetDirectoryId }, { onSuccess });
+          }}
+        />
+      )}
     </UploadDropzone>
   );
 }

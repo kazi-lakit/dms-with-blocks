@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { MoreVertical, Download, Share2, Trash2 } from "lucide-react";
+import { MoreVertical, Download, FolderInput, Copy, RotateCcw, Share2, Trash2, XCircle } from "lucide-react";
 import type { DirectoryChild } from "@/lib/blocks/files";
 import { formatBytes, formatDate } from "@/lib/format";
 import { EntryIcon } from "./file-icon";
@@ -10,12 +10,29 @@ interface FileGridProps {
   entries: DirectoryChild[];
   onOpenFolder: (entry: DirectoryChild) => void;
   onDownload: (entry: DirectoryChild) => void;
-  /** Omit both to render a read-only grid — e.g. browsing content shared with you, where you may not hold Manage. */
+  /** Omit any of these to render a read-only-ish grid — e.g. content shared with you, where you may not hold Manage. */
   onShare?: (entry: DirectoryChild) => void;
+  onMove?: (entry: DirectoryChild) => void;
+  /** Files only — there's no CopyDirectory endpoint, so this is never offered for folders. */
+  onCopy?: (entry: DirectoryChild) => void;
+  /** Soft delete (archives to Trash). Mutually exclusive with onRestore/onPurge in practice — those are the Trash view's own actions. */
   onDelete?: (entry: DirectoryChild) => void;
+  onRestore?: (entry: DirectoryChild) => void;
+  /** Permanent, irreversible removal from Trash. */
+  onPurge?: (entry: DirectoryChild) => void;
 }
 
-export function FileGrid({ entries, onOpenFolder, onDownload, onShare, onDelete }: FileGridProps) {
+export function FileGrid({
+  entries,
+  onOpenFolder,
+  onDownload,
+  onShare,
+  onMove,
+  onCopy,
+  onDelete,
+  onRestore,
+  onPurge,
+}: FileGridProps) {
   const [menuFor, setMenuFor] = useState<string | null>(null);
 
   function openOrDownload(entry: DirectoryChild) {
@@ -49,7 +66,7 @@ export function FileGrid({ entries, onOpenFolder, onDownload, onShare, onDelete 
         >
           <div className="flex items-start justify-between">
             <EntryIcon isFolder={entry.isFolder} name={entry.name} className="h-8 w-8 text-steel" />
-            {(!entry.isFolder || onShare || onDelete) && (
+            {(!entry.isFolder || onShare || onMove || onDelete || onRestore || onPurge) && (
               // Stops every click inside — the toggle button and each menu item — from
               // bubbling up to the tile's own onClick above (which would otherwise also
               // fire open/download at the same time as, say, Delete).
@@ -87,6 +104,39 @@ export function FileGrid({ entries, onOpenFolder, onDownload, onShare, onDelete 
                         <Share2 size={14} /> Share
                       </button>
                     )}
+                    {onMove && (
+                      <button
+                        onClick={() => {
+                          setMenuFor(null);
+                          onMove(entry);
+                        }}
+                        className="flex w-full items-center gap-2 rounded-sm px-2.5 py-1.5 text-left text-sm text-ink hover:bg-surface"
+                      >
+                        <FolderInput size={14} /> Move
+                      </button>
+                    )}
+                    {onCopy && !entry.isFolder && (
+                      <button
+                        onClick={() => {
+                          setMenuFor(null);
+                          onCopy(entry);
+                        }}
+                        className="flex w-full items-center gap-2 rounded-sm px-2.5 py-1.5 text-left text-sm text-ink hover:bg-surface"
+                      >
+                        <Copy size={14} /> Copy
+                      </button>
+                    )}
+                    {onRestore && (
+                      <button
+                        onClick={() => {
+                          setMenuFor(null);
+                          onRestore(entry);
+                        }}
+                        className="flex w-full items-center gap-2 rounded-sm px-2.5 py-1.5 text-left text-sm text-ink hover:bg-surface"
+                      >
+                        <RotateCcw size={14} /> Restore
+                      </button>
+                    )}
                     {onDelete && (
                       <button
                         onClick={() => {
@@ -96,6 +146,17 @@ export function FileGrid({ entries, onOpenFolder, onDownload, onShare, onDelete 
                         className="flex w-full items-center gap-2 rounded-sm px-2.5 py-1.5 text-left text-sm text-brand-error hover:bg-surface"
                       >
                         <Trash2 size={14} /> Delete
+                      </button>
+                    )}
+                    {onPurge && (
+                      <button
+                        onClick={() => {
+                          setMenuFor(null);
+                          onPurge(entry);
+                        }}
+                        className="flex w-full items-center gap-2 rounded-sm px-2.5 py-1.5 text-left text-sm text-brand-error hover:bg-surface"
+                      >
+                        <XCircle size={14} /> Delete forever
                       </button>
                     )}
                   </div>

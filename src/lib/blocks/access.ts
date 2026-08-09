@@ -86,11 +86,39 @@ export const accessApi = {
     if (opts.type) params.set("Type", opts.type);
     return blocksFilesFetch<unknown>(`/Content/GetSharedContent?${params.toString()}`);
   },
+
+  // GET /Content/GetTrash?Cursor=&Limit=&Type= — "Archived directorys and files the caller may view."
+  getTrash: (opts: { cursor?: string; limit?: number; type?: ContentResourceType } = {}) => {
+    const params = new URLSearchParams();
+    if (opts.cursor) params.set("Cursor", opts.cursor);
+    params.set("Limit", String(opts.limit ?? 50));
+    if (opts.type) params.set("Type", opts.type);
+    return blocksFilesFetch<unknown>(`/Content/GetTrash?${params.toString()}`);
+  },
+
+  // POST /Content/RestoreFromTrash — "Returns an archived item to its original parent."
+  restoreFromTrash: (resourceId: string) =>
+    blocksFilesFetch<unknown>(`/Content/RestoreFromTrash`, { method: "POST", body: JSON.stringify({ resourceId }) }),
+
+  // POST /Content/DeleteFromTrash — "Removes an archived item for good." Irreversible.
+  deleteFromTrash: (resourceId: string) =>
+    blocksFilesFetch<unknown>(`/Content/DeleteFromTrash`, { method: "POST", body: JSON.stringify({ resourceId }) }),
 };
 
 export interface SharedContentPage {
   entries: DirectoryChild[];
   nextCursor?: string;
+}
+
+/** Same undeclared-schema situation as GetDirectoryChildren — reuse its row/envelope parsing. */
+export function normalizeTrash(raw: unknown): SharedContentPage {
+  const list = extractEntryList(raw);
+
+  if (list.length === 0 && raw && typeof raw === "object" && process.env.NODE_ENV !== "production") {
+    console.warn("GetTrash: unrecognized response shape", raw);
+  }
+
+  return { entries: list.map(parseDirectoryChildEntry), nextCursor: extractNextCursor(raw) };
 }
 
 /** Same undeclared-schema situation as GetDirectoryChildren — reuse its row/envelope parsing. */

@@ -6,6 +6,7 @@ import { useAuth } from "@/components/providers/auth-provider";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 
 const ERROR_MESSAGES: Record<string, string> = {
   missing_code_or_state: "The sign-in link was incomplete. Please try again.",
@@ -27,7 +28,10 @@ export function LoginView() {
 
   return (
     <div className="flex min-h-screen flex-col">
-      <div className="bg-hero-sky flex flex-1 items-center justify-center px-6 py-24">
+      <div className="bg-hero-sky relative flex flex-1 items-center justify-center px-6 py-24">
+        <div className="absolute right-6 top-6">
+          <ThemeToggle />
+        </div>
         <Card className="w-full max-w-sm bg-canvas/95 shadow-xl backdrop-blur">
           <div className="mb-6 flex flex-col items-center gap-2 text-center">
             <div className="flex h-11 w-11 items-center justify-center rounded-full bg-primary text-on-primary">

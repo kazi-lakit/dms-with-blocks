@@ -2,10 +2,18 @@
 
 /*
  * Design tokens transcribed from /design.md (Mintlify system, DESIGN.md format).
- * Mintlify ships no documented dark palette (see design.md "Known Gaps"), so this
- * app is intentionally light-only — no dark: variants, no prefers-color-scheme.
+ * Mintlify's own spec ships no documented dark palette (see design.md "Known Gaps"),
+ * so the dark values below are this app's own — same tokens, same intent (near-black
+ * ink becomes near-white, canvas/surface invert), not sourced from Mintlify.
+ *
+ * Theme is controlled by `data-theme="light"|"dark"` on <html>, set before paint by
+ * the inline script in app/layout.tsx (reads localStorage, falls back to the OS
+ * preference) and toggled at runtime by ThemeProvider — see
+ * src/components/providers/theme-provider.tsx.
  */
 :root {
+  color-scheme: light;
+
   /* colors */
   --color-primary: #0a0a0a;
   --color-on-primary: #ffffff;
@@ -44,6 +52,47 @@
   --radius-xl: 16px;
   --radius-2xl: 24px;
   --radius-full: 9999px;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  /* Primary inverts to a light pill (was near-black on white) so button/active-state
+     contrast stays the same shape, just flipped, rather than picking a new hue. */
+  --color-primary: #f2f2f3;
+  --color-on-primary: #0a0a0a;
+  --color-charcoal: #d4d4d6; /* primary button hover — darker than primary, still light */
+
+  --color-brand-green: #00e6b3;
+  --color-brand-green-deep: #00c49a;
+  --color-brand-green-soft: #0f3d35;
+  --color-brand-tag: #6ba1f7;
+  --color-brand-warn: #e0a839;
+  --color-brand-annotate: #2ee0ac;
+  --color-brand-error: #ea8a8a;
+  --color-brand-cursor: #9a9a9a;
+
+  --color-hero-sky-from: #16324a;
+  --color-hero-sky-to: #2b2320;
+
+  --color-canvas: #0a0a0b;
+  --color-canvas-dark: #000000;
+  --color-surface: #1a1a1c;
+  --color-surface-soft: #222224;
+  --color-surface-code: #000000;
+
+  --color-hairline: #2c2c2f;
+  --color-hairline-soft: #232325;
+  --color-hairline-dark: #3a3a3c;
+
+  --color-ink: #f2f2f3;
+  --color-slate: #d1d1d3;
+  --color-steel: #a9a9ad;
+  --color-stone: #6f6f74;
+  --color-muted: #86868b;
+
+  --color-on-dark: #ffffff;
+  --color-on-dark-muted: #b3b3b3;
 }
 
 @theme inline {
@@ -91,6 +140,9 @@ body {
   background: var(--color-canvas);
   color: var(--color-ink);
   font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease;
 }
 
 /* Mintlify hero gradient bands — sky (marketing) and dark (auth-adjacent) */

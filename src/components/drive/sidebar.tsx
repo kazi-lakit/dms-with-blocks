@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Folder, Users } from "lucide-react";
+import { Folder, Trash2, Users } from "lucide-react";
 import clsx from "clsx";
 
 const NAV_ITEMS = [
   { label: "My files", href: "/drive", icon: Folder },
   { label: "Shared with me", href: "/shared", icon: Users },
+  { label: "Trash", href: "/trash", icon: Trash2 },
 ];
 
 export function Sidebar() {
