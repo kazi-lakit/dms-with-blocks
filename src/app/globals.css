@@ -1,26 +1,117 @@
 @import "tailwindcss";
 
+/*
+ * Design tokens transcribed from /design.md (Mintlify system, DESIGN.md format).
+ * Mintlify ships no documented dark palette (see design.md "Known Gaps"), so this
+ * app is intentionally light-only — no dark: variants, no prefers-color-scheme.
+ */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* colors */
+  --color-primary: #0a0a0a;
+  --color-on-primary: #ffffff;
+  --color-brand-green: #00d4a4;
+  --color-brand-green-deep: #00b48a;
+  --color-brand-green-soft: #7cebcb;
+  --color-brand-tag: #3772cf;
+  --color-brand-warn: #c37d0d;
+  --color-brand-annotate: #1ba673;
+  --color-brand-error: #d45656;
+  --color-brand-cursor: #888888;
+  --color-hero-sky-from: #87a8c8;
+  --color-hero-sky-to: #f5e9d8;
+  --color-canvas: #ffffff;
+  --color-canvas-dark: #0a0a0a;
+  --color-surface: #f7f7f7;
+  --color-surface-soft: #fafafa;
+  --color-surface-code: #1c1c1e;
+  --color-hairline: #e5e5e5;
+  --color-hairline-soft: #ededed;
+  --color-hairline-dark: #1f1f1f;
+  --color-ink: #0a0a0a;
+  --color-charcoal: #1c1c1e;
+  --color-slate: #3a3a3c;
+  --color-steel: #5a5a5c;
+  --color-stone: #888888;
+  --color-muted: #a8a8aa;
+  --color-on-dark: #ffffff;
+  --color-on-dark-muted: #b3b3b3;
+
+  /* radius — Mintlify's 7-step scale (never soften between md/lg for the same family) */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-2xl: 24px;
+  --radius-full: 9999px;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+  --color-primary: var(--color-primary);
+  --color-on-primary: var(--color-on-primary);
+  --color-brand-green: var(--color-brand-green);
+  --color-brand-green-deep: var(--color-brand-green-deep);
+  --color-brand-green-soft: var(--color-brand-green-soft);
+  --color-brand-tag: var(--color-brand-tag);
+  --color-brand-warn: var(--color-brand-warn);
+  --color-brand-annotate: var(--color-brand-annotate);
+  --color-brand-error: var(--color-brand-error);
+  --color-hero-sky-from: var(--color-hero-sky-from);
+  --color-hero-sky-to: var(--color-hero-sky-to);
+  --color-canvas: var(--color-canvas);
+  --color-canvas-dark: var(--color-canvas-dark);
+  --color-surface: var(--color-surface);
+  --color-surface-soft: var(--color-surface-soft);
+  --color-surface-code: var(--color-surface-code);
+  --color-hairline: var(--color-hairline);
+  --color-hairline-soft: var(--color-hairline-soft);
+  --color-hairline-dark: var(--color-hairline-dark);
+  --color-ink: var(--color-ink);
+  --color-charcoal: var(--color-charcoal);
+  --color-slate: var(--color-slate);
+  --color-steel: var(--color-steel);
+  --color-stone: var(--color-stone);
+  --color-muted: var(--color-muted);
+  --color-on-dark: var(--color-on-dark);
+  --color-on-dark-muted: var(--color-on-dark-muted);
+
+  --radius-xs: var(--radius-xs);
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
+  --radius-xl: var(--radius-xl);
+  --radius-2xl: var(--radius-2xl);
+  --radius-full: var(--radius-full);
+
+  --font-sans: var(--font-inter);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+body {
+  background: var(--color-canvas);
+  color: var(--color-ink);
+  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* Mintlify hero gradient bands — sky (marketing) and dark (auth-adjacent) */
+.bg-hero-sky {
+  background: linear-gradient(160deg, var(--color-hero-sky-from) 0%, var(--color-hero-sky-to) 100%);
+}
+
+::selection {
+  background: var(--color-brand-green-soft);
+  color: var(--color-primary);
+}
+
+* {
+  scrollbar-color: var(--color-muted) transparent;
+}
+
+/* Tailwind's preflight leaves buttons at the browser default (not pointer) — every
+   clickable control in this app should show a pointer cursor on hover. */
+button:not(:disabled),
+[role="button"]:not([aria-disabled="true"]),
+a,
+summary {
+  cursor: pointer;
 }

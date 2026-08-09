@@ -1,0 +1,211 @@
+"use client";
+
+import { FormEvent, useState } from "react";
+import { Trash2, Users } from "lucide-react";
+import clsx from "clsx";
+import { Modal } from "@/components/ui/modal";
+import { Select } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
+import type { AccessPolicy, ContentPermission, ContentPrincipalType } from "@/lib/blocks/access";
+import type { DirectoryChild } from "@/lib/blocks/files";
+import type { BlocksRole } from "@/lib/blocks/roles";
+import type { BlocksUser } from "@/lib/blocks/users";
+import {
+  useAccessPolicies,
+  useRevokeAccess,
+  useRoles,
+  useShareEntry,
+  useUpdateAccess,
+  useUsers,
+} from "@/lib/blocks/drive-hooks";
+
+const PERMISSIONS: ContentPermission[] = ["View", "Download", "Edit", "Delete", "Manage"];
+
+function PermissionSelect({
+  value,
+  onChange,
+  disabled,
+  className,
+}: {
+  value: ContentPermission;
+  onChange: (p: ContentPermission) => void;
+  disabled?: boolean;
+  className?: string;
+}) {
+  return (
+    <Select
+      value={value}
+      disabled={disabled}
+      onChange={(e) => onChange(e.target.value as ContentPermission)}
+      className={className}
+    >
+      {PERMISSIONS.map((p) => (
+        <option key={p} value={p}>
+          {p}
+        </option>
+      ))}
+    </Select>
+  );
+}
+
+/** Resolves a policy's principalId back to a human-readable name — the API only returns the id. */
+function describePrincipal(policy: AccessPolicy, users: BlocksUser[] | undefined, roles: BlocksRole[] | undefined) {
+  if (policy.principalType === "User") {
+    const user = users?.find((u) => u.itemId === policy.principalId);
+    if (user) return { primary: `${user.firstName} ${user.lastName}`.trim() || user.email, secondary: user.email };
+  }
+  if (policy.principalType === "Role") {
+    const role = roles?.find((r) => r.slug === policy.principalId);
+    if (role) return { primary: role.name, secondary: "Role" };
+  }
+  return { primary: policy.principalName || policy.principalId, secondary: policy.principalType };
+}
+
+export function ShareDialog({ entry, onClose }: { entry: DirectoryChild; onClose: () => void }) {
+  const resourceType = entry.isFolder ? "Directory" : "File";
+  const { data: policies, isPending } = useAccessPolicies(entry.id);
+  const { data: users, isPending: usersPending } = useUsers();
+  const { data: roles, isPending: rolesPending } = useRoles();
+  const share = useShareEntry(entry.id);
+  const update = useUpdateAccess(entry.id);
+  const revoke = useRevokeAccess(entry.id);
+
+  const [principalType, setPrincipalType] = useState<ContentPrincipalType>("User");
+  const [principalId, setPrincipalId] = useState(""); // itemId (User) or slug (Role)
+  const [permission, setPermission] = useState<ContentPermission>("View");
+
+  function onSubmit(e: FormEvent) {
+    e.preventDefault();
+    if (!principalId) return;
+    share.mutate({ resourceType, principalType, principalId, permission }, { onSuccess: () => setPrincipalId("") });
+  }
+
+  return (
+    <Modal onClose={onClose} className="max-w-md">
+      <h2 className="mb-1 text-lg font-semibold text-ink">Share &ldquo;{entry.name}&rdquo;</h2>
+      <p className="mb-4 text-sm text-steel">Give a user or role access to this {entry.isFolder ? "folder" : "file"}.</p>
+
+      <form onSubmit={onSubmit} className="flex flex-col gap-3 border-b border-hairline pb-5">
+        <div className="flex gap-2">
+          {/* A plain <select> with only two short options ("User"/"Role") rendered
+              inconsistently across browsers even with appearance-none reset — a
+              two-way toggle sidesteps native <select> box-model quirks entirely. */}
+          <div className="flex h-10 shrink-0 rounded-md border border-hairline p-0.5">
+            {(["User", "Role"] as ContentPrincipalType[]).map((type) => (
+              <button
+                key={type}
+                type="button"
+                onClick={() => {
+                  setPrincipalType(type);
+                  setPrincipalId("");
+                }}
+                className={clsx(
+                  "rounded-sm px-3 text-sm font-medium transition-colors",
+                  principalType === type ? "bg-primary text-on-primary" : "text-steel hover:bg-surface"
+                )}
+              >
+                {type}
+              </button>
+            ))}
+          </div>
+
+          {principalType === "User" ? (
+            <Select
+              value={principalId}
+              onChange={(e) => setPrincipalId(e.target.value)}
+              required
+              disabled={usersPending}
+            >
+              <option value="" disabled>
+                {usersPending ? "Loading users…" : "Select a user…"}
+              </option>
+              {users?.map((user) => (
+                <option key={user.itemId} value={user.itemId}>
+                  {`${user.firstName} ${user.lastName}`.trim() || user.email} ({user.email})
+                </option>
+              ))}
+            </Select>
+          ) : (
+            <Select
+              value={principalId}
+              onChange={(e) => setPrincipalId(e.target.value)}
+              required
+              disabled={rolesPending}
+            >
+              <option value="" disabled>
+                {rolesPending ? "Loading roles…" : "Select a role…"}
+              </option>
+              {roles?.map((role) => (
+                <option key={role.itemId} value={role.slug}>
+                  {role.name}
+                </option>
+              ))}
+            </Select>
+          )}
+        </div>
+
+        <div className="flex gap-2">
+          <PermissionSelect value={permission} onChange={setPermission} className="flex-1" />
+          <Button type="submit" size="sm" className="shrink-0" disabled={share.isPending || !principalId}>
+            {share.isPending ? <Spinner className="h-4 w-4" /> : <Users size={15} />}
+            Share
+          </Button>
+        </div>
+      </form>
+
+      <div className="mt-4 flex flex-col gap-1">
+        <p className="mb-1 text-xs font-medium uppercase tracking-wide text-muted">Who has access</p>
+        <div className="flex max-h-56 flex-col gap-1 overflow-y-auto">
+          {isPending ? (
+            <div className="flex justify-center py-6">
+              <Spinner className="h-5 w-5" />
+            </div>
+          ) : policies && policies.length > 0 ? (
+            policies.map((policy) => {
+              const { primary, secondary } = describePrincipal(policy, users, roles);
+              return (
+                <div key={policy.policyItemId} className="flex items-center gap-2 rounded-md px-1 py-2 hover:bg-surface">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm text-ink">{primary}</p>
+                    <p className="truncate text-xs text-muted">{secondary}</p>
+                  </div>
+                  <PermissionSelect
+                    value={policy.permission}
+                    disabled={update.isPending}
+                    className="w-32 shrink-0"
+                    onChange={(perm) =>
+                      update.mutate({
+                        policyItemId: policy.policyItemId,
+                        resourceType,
+                        principalType: policy.principalType,
+                        principalId: policy.principalId,
+                        permission: perm,
+                      })
+                    }
+                  />
+                  <button
+                    onClick={() => revoke.mutate(policy.policyItemId)}
+                    disabled={revoke.isPending}
+                    className="shrink-0 rounded-sm p-1.5 text-muted hover:bg-hairline-soft hover:text-brand-error disabled:opacity-50"
+                    aria-label="Remove access"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              );
+            })
+          ) : (
+            <p className="py-3 text-sm text-muted">Not shared with anyone yet.</p>
+          )}
+        </div>
+      </div>
+
+      <div className="mt-5 flex justify-end">
+        <Button type="button" variant="secondary" onClick={onClose}>
+          Done
+        </Button>
+      </div>
+    </Modal>
+  );
+}
