@@ -2,6 +2,7 @@
 
 import { BLOCKS_API_URL, BLOCKS_PROJECT_KEY, BLOCKS_STORAGE_API_URL, BLOCKS_STORAGE_BASE_PATH } from "./config";
 import { getAccessToken, setAccessToken } from "./token-store";
+import { toast } from "@/lib/toast-store";
 
 export class BlocksApiError extends Error {
   status: number;
@@ -11,6 +12,35 @@ export class BlocksApiError extends Error {
     this.status = status;
     this.body = body;
   }
+}
+
+function extractErrorMessage(errors: unknown): string {
+  if (Array.isArray(errors)) {
+    return errors.filter((e) => typeof e === "string").join("; ");
+  }
+  if (errors && typeof errors === "object") {
+    return Object.entries(errors as Record<string, unknown>)
+      .filter(([, value]) => typeof value === "string" && value.length > 0)
+      .map(([key, value]) => `${key}: ${value as string}`)
+      .join("; ");
+  }
+  return "";
+}
+
+/**
+ * Many Blocks responses are HTTP 200 but carry a business-level failure —
+ * `{isSuccess:false, errors:{...}}` (e.g. `/Files/GetFile` returning `{"access":
+ * "forbidden"}` with every data field null). `!res.ok` never catches this since the
+ * HTTP status is fine. Surface it as a toast and throw so callers see it as a failure
+ * too, instead of quietly getting a body full of nulls.
+ */
+function assertBusinessSuccess(body: unknown): void {
+  if (!body || typeof body !== "object") return;
+  const { isSuccess, errors } = body as { isSuccess?: boolean; errors?: unknown };
+  if (isSuccess !== false) return;
+  const message = extractErrorMessage(errors) || "Something went wrong.";
+  toast.error(message);
+  throw new BlocksApiError(200, errors);
 }
 
 let refreshInFlight: Promise<string | null> | null = null;
@@ -65,7 +95,9 @@ export async function blocksFetch<T>(path: string, init: RequestInit = {}, _retr
     const body = await res.json().catch(() => null);
     throw new BlocksApiError(res.status, body);
   }
-  return res.json() as Promise<T>;
+  const body = await res.json();
+  assertBusinessSuccess(body);
+  return body as T;
 }
 
 /**
@@ -96,7 +128,9 @@ export async function blocksFilesFetch<T>(path: string, init: RequestInit = {}, 
     const body = await res.json().catch(() => null);
     throw new BlocksApiError(res.status, body);
   }
-  return res.json() as Promise<T>;
+  const body = await res.json();
+  assertBusinessSuccess(body);
+  return body as T;
 }
 
 /**
