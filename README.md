@@ -26,13 +26,13 @@ adds no custom backend beyond what's needed to broker the OIDC handshake.
   the current-user profile all hit Blocks straight from the browser.
   - IAM (`/iam/v4/*`) goes to this project's dedicated dev gateway,
     `https://blocksapi.dev.slsblx.com`, not the shared `api.seliseblocks.com`.
-  - Storage/DMS (`/Files/*`, `/Directory/*`, `/Content/*`) switches host **and** base
+  - Storage/DMS (`/files/*`, `/directory/*`, `/objects/*`) switches host **and** base
     path together via `NEXT_PUBLIC_BLOCKS_STORAGE_MODE` (`src/lib/blocks/config.ts`):
     `"local"` (default) hits a standalone instance at `NEXT_PUBLIC_BLOCKS_STORAGE_API_URL`
     (default `http://localhost:9000`) under `/api`
-    (`http://localhost:9000/api/Directory/GetDirectoryChildren`); `"live"` hits the main
+    (`http://localhost:9000/api/objects/get-objects`); `"live"` hits the main
     gateway (`NEXT_PUBLIC_BLOCKS_API_URL`) under `/data/v4`
-    (`https://blocksapi.dev.slsblx.com/data/v4/Directory/GetDirectoryChildren`). See
+    (`https://blocksapi.dev.slsblx.com/data/v4/objects/get-objects`). See
     `blocksFilesFetch` in `src/lib/blocks/http.ts`.
 - **User activation** (`/activate`) is a direct, unauthenticated call to Blocks
   (`POST /iam/v4/auth/activate`) for the invite-and-activate flow — no bearer token
@@ -78,18 +78,20 @@ Unlike a typical Blocks frontend, **you do not need `blocks-frontend-local-https
 this app never stores a Blocks session cookie in the browser, so it can run on plain
 `http://localhost` without a same-site HTTPS domain.
 
-## Data service: `/Directory/*` + `/Files/*`, not `/Files/GetDmsFileAndFolder`
+## Current data-service DMS endpoints
 
-This project's data service swagger
-(`https://blocksapi.dev.slsblx.com/data/v4/swagger/v1/swagger.json`) exposes a
-dedicated `/Directory/*` resource for folders — `GetDirectoryChildren`,
-`CreateDirectory` / `CreateRootDirectory`, `DeleteDirectory` — alongside `/Files/*` for
-file content (presign, download, delete). `src/lib/blocks/files.ts` targets that live
-contract. Two things worth knowing:
+The current data-service swagger
+(`https://api.seliseblocks.com/data/v4/swagger/v1/swagger.json`) exposes
+`/directory/*` for folder mutations, `/objects/*` for listings, trash, and access
+control, and `/files/*` for file content (presign, download, delete). For example,
+folder browsing is `GET /objects/get-objects`, and every folder creation (including a
+drive root) uses `POST /directory/create-directory`; the former
+`/directory/create-root-directory` route no longer exists. `src/lib/blocks/files.ts`
+and `src/lib/blocks/access.ts` target this contract. Two things worth knowing:
 
 - Calls skip the swagger's `/api` prefix — the endpoint is
-  `.../data/v4/Directory/GetDirectoryChildren`, not `.../data/v4/api/Directory/...`.
-- **`GetDirectoryChildren`'s response has no declared schema in the swagger** (the
+  `.../data/v4/objects/get-objects`, not `.../data/v4/api/objects/get-objects`.
+- **`get-objects`' response has no declared schema in the swagger** (the
   200 response is undocumented), so `normalizeDirectoryChildren` in `files.ts` guesses
   at the envelope and field names defensively, and `console.warn`s the raw shape in dev
   if nothing matches. Once you can log in and browse a folder, check the browser's
@@ -98,37 +100,37 @@ contract. Two things worth knowing:
 
 ## Drive provisioning (BlxDrive) and sharing
 
-Two more pieces run on top of `/Directory` and `/Files`:
+Two more pieces run on top of `/directory`, `/files`, and `/objects`:
 
 - **Per-user drive root** — on login, `DriveProvider` (`src/components/providers/drive-provider.tsx`)
   looks up a `BlxDrive` record for the signed-in user via the Data Gateway
   (`src/lib/blocks/drives.ts`, `/data/v4/gateway` — GraphQL, on `BLOCKS_API_URL`, not the
   local storage service). If none exists, the user sees a one-time "Set up your drive"
-  prompt; agreeing calls `POST /Directory/CreateDirectory` (no `parentDirectoryId`,
+  prompt; agreeing calls `POST /directory/create-directory` (no `parentDirectoryId`,
   `moduleName: 8`) and records the result as a new `BlxDrive` row. From then on, "My
   files" in the drive UI always resolves to that directory, never the raw storage root.
-- **Sharing** — `src/lib/blocks/access.ts` wraps the storage service's `/Content/*`
-  endpoints (`ShareContent`, `GrantAccess`/`UpdateAccessPolicy`, `RevokeAccessPolicy`,
-  `GetAccessPolicies`), confirmed live against its swagger with clean string enums:
+- **Sharing** — `src/lib/blocks/access.ts` wraps the storage service's `/objects/*`
+  endpoints (`share-object`, `update-access-policy`, `revoke-access-policy`,
+  `get-access-policies`), confirmed against its swagger with clean string enums:
   `ContentPrincipalType` (`User`/`Role`/`Everyone`/`Organization`) and
   `ContentPermission` (`View`/`Download`/`Edit`/`Delete`/`Manage`/`Owner` — the share UI
   offers everything but `Owner`, which is system-assigned). The share dialog
   (`src/components/drive/share-dialog.tsx`, opened from a file/folder's "Share" menu
   item) picks a user from `usersApi.list()` or a role by `slug` from `rolesApi.list()` —
   both real dropdowns, not free text. As with the other DMS endpoints,
-  `GetAccessPolicies`/`ShareContent`'s response shapes aren't in the swagger —
+  `get-access-policies`/`share-object`'s response shapes aren't in the swagger —
   `normalizeAccessPolicies` in `access.ts` guesses defensively; tighten it up against a
   real response if the shares list looks off.
-- **Shared with me** — `GET /Content/GetSharedContent` (cursor/limit/type, no schema
+- **Shared with me** — `GET /objects/get-shared-objects` (cursor/limit/type, no schema
   declared either) returns the top-level content shared with the signed-in user;
   `accessApi.getSharedContent` + `normalizeSharedContent` in `access.ts` wrap it, reusing
-  the same row-parsing helpers as `GetDirectoryChildren` (`extractEntryList`,
+  the same row-parsing helpers as `get-objects` (`extractEntryList`,
   `parseDirectoryChildEntry`, exported from `files.ts`) since both return the same kind
   of file/directory row. The `/shared` page (`src/app/(app)/shared/page.tsx`, linked from
   the sidebar) shows that top level; opening a shared folder switches to a normal
-  `GetDirectoryChildren` call for its children — access there is enforced server-side by
+  `get-objects` call for its children — access there is enforced server-side by
   the share, not by this page. It's read-only (no Share/Delete): a share may only grant
-  View/Download, and `GetSharedContent` doesn't say what permission you hold on each row.
+  View/Download, and `get-shared-objects` doesn't say what permission you hold on each row.
 
 ## Fixed: wrong API host was causing `404 Application_Not_Found`
 
@@ -146,8 +148,8 @@ src/lib/blocks-oidc.ts       Blocks OIDC calls made from the backend (server-onl
 src/lib/auth-session.ts      token freshness/refresh orchestration (server-only)
 src/app/api/auth/*           the OIDC route handlers described above
 src/lib/blocks/*              browser-side Blocks API clients (bearer-token fetches)
-  files.ts, drive-hooks.ts     Directory/Files (folders, upload, download, delete)
-  access.ts                    Content sharing (/Content/*) — grant/update/revoke/list
+  files.ts, drive-hooks.ts     directory/files (folders, upload, download, delete)
+  access.ts                    Object sharing (/objects/*) — grant/update/revoke/list
   drives.ts                    BlxDrive lookup/insert via the Data Gateway
   users.ts, roles.ts           user email lookup, role list — for the share dialog
 src/components/providers/    AuthProvider (session bootstrap) + DriveProvider + React Query

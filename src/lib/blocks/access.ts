@@ -2,8 +2,8 @@ import { blocksFilesFetch } from "./http";
 import { extractEntryList, extractNextCursor, parseDirectoryChildEntry, type DirectoryChild } from "./files";
 
 /**
- * Sharing / access control for a directory or file — `/Content/*` on the local storage
- * service (confirmed live against its swagger, alongside `/Directory/*` and `/Files/*`).
+ * Sharing / access control for a directory or file — `/objects/*` on the storage
+ * service (confirmed against its swagger, alongside `/directory/*` and `/files/*`).
  * `ContentPermission`/`ContentPrincipalType`/`ContentResourceType`/`ContentEffect` are
  * clean string enums there — used verbatim below.
  */
@@ -33,7 +33,7 @@ export interface AccessPolicy {
 }
 
 export const accessApi = {
-  // POST /Content/ShareContent — "Grants a principal an allow entry and records it as a share."
+  // POST /objects/share-object — "Grants a principal an allow entry and records it as a share."
   share: (params: {
     resourceId: string;
     resourceType: ContentResourceType;
@@ -41,9 +41,9 @@ export const accessApi = {
     principalId: string;
     permission: ContentPermission;
     expiresAt?: string;
-  }) => blocksFilesFetch<unknown>(`/Content/ShareContent`, { method: "POST", body: JSON.stringify(params) }),
+  }) => blocksFilesFetch<unknown>(`/objects/share-object`, { method: "POST", body: JSON.stringify(params) }),
 
-  // POST /Content/UpdateAccessPolicy — same shape as GrantAccessRequest; policyItemId identifies the entry.
+  // POST /objects/update-access-policy — same shape as GrantAccessRequest; policyItemId identifies the entry.
   update: (params: {
     policyItemId: string;
     resourceId: string;
@@ -54,29 +54,29 @@ export const accessApi = {
     effect?: ContentEffect;
     priority?: number;
   }) =>
-    blocksFilesFetch<unknown>(`/Content/UpdateAccessPolicy`, {
+    blocksFilesFetch<unknown>(`/objects/update-access-policy`, {
       method: "POST",
       body: JSON.stringify({ effect: "Allow", priority: 0, ...params }),
     }),
 
-  // POST /Content/RevokeAccessPolicy — "Deletes an access entry."
+  // POST /objects/revoke-access-policy — "Deletes an access entry."
   revoke: (resourceId: string, policyItemId: string) =>
-    blocksFilesFetch<unknown>(`/Content/RevokeAccessPolicy`, {
+    blocksFilesFetch<unknown>(`/objects/revoke-access-policy`, {
       method: "POST",
       body: JSON.stringify({ resourceId, policyItemId }),
     }),
 
-  // GET /Content/GetAccessPolicies?ResourceId=&IncludeInherited= — "The access entries on a resource."
+  // GET /objects/get-access-policies?ResourceId=&IncludeInherited= — "The access entries on a resource."
   list: (resourceId: string, includeInherited = false) =>
     blocksFilesFetch<unknown>(
-      `/Content/GetAccessPolicies?ResourceId=${encodeURIComponent(resourceId)}&IncludeInherited=${includeInherited}`
+      `/objects/get-access-policies?ResourceId=${encodeURIComponent(resourceId)}&IncludeInherited=${includeInherited}`
     ),
 
-  // GET /Content/ResolveAccess?resourceId= — "The operations the calling user holds on a resource."
+  // GET /objects/resolve-access?resourceId= — "The operations the calling user holds on a resource."
   resolve: (resourceId: string) =>
-    blocksFilesFetch<unknown>(`/Content/ResolveAccess?resourceId=${encodeURIComponent(resourceId)}`),
+    blocksFilesFetch<unknown>(`/objects/resolve-access?resourceId=${encodeURIComponent(resourceId)}`),
 
-  // GET /Content/GetSharedContent?Cursor=&Limit=&Type= — content shared with the caller
+  // GET /objects/get-shared-objects?Cursor=&Limit=&Type= — content shared with the caller
   // (SharedContentRequest). `type`, when given, narrows to "Directory" or "File"; both
   // come back when omitted.
   getSharedContent: (opts: { cursor?: string; limit?: number; type?: ContentResourceType } = {}) => {
@@ -84,25 +84,25 @@ export const accessApi = {
     if (opts.cursor) params.set("Cursor", opts.cursor);
     params.set("Limit", String(opts.limit ?? 50));
     if (opts.type) params.set("Type", opts.type);
-    return blocksFilesFetch<unknown>(`/Content/GetSharedContent?${params.toString()}`);
+    return blocksFilesFetch<unknown>(`/objects/get-shared-objects?${params.toString()}`);
   },
 
-  // GET /Content/GetTrash?Cursor=&Limit=&Type= — "Archived directorys and files the caller may view."
+  // GET /objects/get-trash?Cursor=&Limit=&Type= — "Archived directories and files the caller may view."
   getTrash: (opts: { cursor?: string; limit?: number; type?: ContentResourceType } = {}) => {
     const params = new URLSearchParams();
     if (opts.cursor) params.set("Cursor", opts.cursor);
     params.set("Limit", String(opts.limit ?? 50));
     if (opts.type) params.set("Type", opts.type);
-    return blocksFilesFetch<unknown>(`/Content/GetTrash?${params.toString()}`);
+    return blocksFilesFetch<unknown>(`/objects/get-trash?${params.toString()}`);
   },
 
-  // POST /Content/RestoreFromTrash — "Returns an archived item to its original parent."
+  // POST /objects/restore-from-trash — "Returns an archived item to its original parent."
   restoreFromTrash: (resourceId: string) =>
-    blocksFilesFetch<unknown>(`/Content/RestoreFromTrash`, { method: "POST", body: JSON.stringify({ resourceId }) }),
+    blocksFilesFetch<unknown>(`/objects/restore-from-trash`, { method: "POST", body: JSON.stringify({ resourceId }) }),
 
-  // POST /Content/DeleteFromTrash — "Removes an archived item for good." Irreversible.
+  // POST /objects/delete-from-trash — "Removes an archived item for good." Irreversible.
   deleteFromTrash: (resourceId: string) =>
-    blocksFilesFetch<unknown>(`/Content/DeleteFromTrash`, { method: "POST", body: JSON.stringify({ resourceId }) }),
+    blocksFilesFetch<unknown>(`/objects/delete-from-trash`, { method: "POST", body: JSON.stringify({ resourceId }) }),
 };
 
 export interface SharedContentPage {
@@ -110,29 +110,29 @@ export interface SharedContentPage {
   nextCursor?: string;
 }
 
-/** Same undeclared-schema situation as GetDirectoryChildren — reuse its row/envelope parsing. */
+/** Same undeclared-schema situation as get-objects — reuse its row/envelope parsing. */
 export function normalizeTrash(raw: unknown): SharedContentPage {
   const list = extractEntryList(raw);
 
   if (list.length === 0 && raw && typeof raw === "object" && process.env.NODE_ENV !== "production") {
-    console.warn("GetTrash: unrecognized response shape", raw);
+    console.warn("get-trash: unrecognized response shape", raw);
   }
 
   return { entries: list.map(parseDirectoryChildEntry), nextCursor: extractNextCursor(raw) };
 }
 
-/** Same undeclared-schema situation as GetDirectoryChildren — reuse its row/envelope parsing. */
+/** Same undeclared-schema situation as get-objects — reuse its row/envelope parsing. */
 export function normalizeSharedContent(raw: unknown): SharedContentPage {
   const list = extractEntryList(raw);
 
   if (list.length === 0 && raw && typeof raw === "object" && process.env.NODE_ENV !== "production") {
-    console.warn("GetSharedContent: unrecognized response shape", raw);
+    console.warn("get-shared-objects: unrecognized response shape", raw);
   }
 
   return { entries: list.map(parseDirectoryChildEntry), nextCursor: extractNextCursor(raw) };
 }
 
-/** Undeclared response shape (same pattern as GetDirectoryChildren) — normalize defensively. */
+/** Undeclared response shape (same pattern as get-objects) — normalize defensively. */
 export function normalizeAccessPolicies(raw: unknown): AccessPolicy[] {
   const list: unknown[] = Array.isArray(raw)
     ? raw
@@ -145,7 +145,7 @@ export function normalizeAccessPolicies(raw: unknown): AccessPolicy[] {
           : [];
 
   if (list.length === 0 && raw && typeof raw === "object" && process.env.NODE_ENV !== "production") {
-    console.warn("GetAccessPolicies: unrecognized response shape", raw);
+    console.warn("get-access-policies: unrecognized response shape", raw);
   }
 
   return list.map((entry) => {

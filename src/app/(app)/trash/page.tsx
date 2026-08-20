@@ -7,10 +7,10 @@ import { filesApi, type DirectoryChild } from "@/lib/blocks/files";
 import { useDeleteFromTrash, useRestoreFromTrash, useTrash } from "@/lib/blocks/drive-hooks";
 
 /**
- * Archived files and folders — GET /Content/GetTrash. Flat, not browsable (opening a
+ * Archived files and folders — GET /objects/get-trash. Flat, not browsable (opening a
  * trashed folder to see its own trashed children isn't something the API models here),
  * so onOpenFolder is a no-op. Restore puts an item back in its original parent
- * (RestoreFromTrash); Delete forever calls DeleteFromTrash, which is irreversible —
+ * (`restore-from-trash`); Delete forever calls `delete-from-trash`, which is irreversible —
  * confirmed with the user before firing.
  */
 export default function TrashPage() {

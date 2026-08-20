@@ -49,8 +49,8 @@ export function useCreateDirectory(directoryId: string) {
 }
 
 // A "delete" from the drive is always a soft delete — archives into Trash rather than
-// erasing outright. `/Files/DeleteFile` has no permanent flag (files always archive);
-// `/Directory/DeleteDirectory` does, so it's passed explicitly rather than relying on
+// erasing outright. `/files/delete-file` and `/directory/delete-directory` both accept
+// `permanent`, so false is passed explicitly rather than relying on
 // its own default. Permanent removal only happens from the Trash view (useDeleteFromTrash).
 export function useDeleteEntry(directoryId: string) {
   const qc = useQueryClient();

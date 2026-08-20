@@ -2,7 +2,7 @@ export const BLOCKS_API_URL = process.env.NEXT_PUBLIC_BLOCKS_API_URL!;
 export const BLOCKS_PROJECT_KEY = process.env.NEXT_PUBLIC_BLOCKS_PROJECT_KEY!;
 
 /**
- * The DMS/storage service (`/Files/*`, `/Directory/*`, `/Content/*`) has two homes for
+ * The DMS/storage service (`/files/*`, `/directory/*`, `/objects/*`) has two homes for
  * this project:
  *  - "local" — a standalone local instance (`NEXT_PUBLIC_BLOCKS_STORAGE_API_URL`,
  *    default `http://localhost:9000`), base path `/api`.

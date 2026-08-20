@@ -8,9 +8,9 @@ import { filesApi, type DirectoryChild } from "@/lib/blocks/files";
 import { useDirectoryChildren, useSharedContent } from "@/lib/blocks/drive-hooks";
 
 /**
- * Content shared with the signed-in user — GET /Content/GetSharedContent. That endpoint
+ * Content shared with the signed-in user — GET /objects/get-shared-objects. That endpoint
  * only returns the top level; once you open a shared folder, browsing its children is
- * a normal GetDirectoryChildren call (access there is enforced server-side by the
+ * a normal get-objects call (access there is enforced server-side by the
  * inherited/direct share, same as any other directory) — see useDirectoryChildren.
  * No Share/Delete here: SharedContentRequest carries no permission info per item, and a
  * share may only grant View/Download, so this stays a read-only, browse-and-download view.

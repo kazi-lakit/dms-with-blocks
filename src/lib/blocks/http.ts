@@ -29,7 +29,7 @@ function extractErrorMessage(errors: unknown): string {
 
 /**
  * Many Blocks responses are HTTP 200 but carry a business-level failure —
- * `{isSuccess:false, errors:{...}}` (e.g. `/Files/GetFile` returning `{"access":
+ * `{isSuccess:false, errors:{...}}` (e.g. `/files/get-file` returning `{"access":
  * "forbidden"}` with every data field null). `!res.ok` never catches this since the
  * HTTP status is fine. Surface it as a toast and throw so callers see it as a failure
  * too, instead of quietly getting a body full of nulls.
@@ -72,7 +72,7 @@ async function refreshAccessToken(): Promise<string | null> {
 /**
  * Calls a Blocks service directly from the browser with `Authorization: Bearer` + the
  * project key, retrying once via this app's own token refresh on a 401. `path` is
- * relative to the Blocks API host, e.g. `/iam/v4/iam/me` or `/data/v4/Files/GetFile?...`.
+ * relative to the Blocks API host, e.g. `/iam/v4/iam/me` or `/data/v4/files/get-file?...`.
  */
 export async function blocksFetch<T>(path: string, init: RequestInit = {}, _retried = false): Promise<T> {
   const token = getAccessToken();
@@ -101,7 +101,7 @@ export async function blocksFetch<T>(path: string, init: RequestInit = {}, _retr
 }
 
 /**
- * Same as blocksFetch, but for the DMS `/Files/*`, `/Directory/*`, and `/Content/*`
+ * Same as blocksFetch, but for the DMS `/files/*`, `/directory/*`, and `/objects/*`
  * routes, which return flat bodies. Host and base path switch together via
  * `NEXT_PUBLIC_BLOCKS_STORAGE_MODE` (see config.ts): "local" hits a standalone instance
  * at `BLOCKS_STORAGE_API_URL` under `/api`; "live" hits the main Blocks gateway under
